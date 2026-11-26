@@ -174,7 +174,11 @@ return`<div class="grid two"><div class="card"><h2>Джерело даних</h2
 <label class="mu">Вхід через Google — OAuth Client ID (найнадійніше для непублічних таблиць)</label><br><input id="scid" style="width:100%;margin:6px 0 8px" placeholder="123456-abc.apps.googleusercontent.com" value="${esc(cfg.cid||'')}"><button class="btn pr" onclick="saveSrc();signIn()" style="margin-bottom:14px">🔑 Увійти через Google</button><br>
 <label class="mu">Apps Script URL (рекомендовано, якщо таблиця не публічна)</label><br><input id="sapi" style="width:100%;margin:6px 0 12px" placeholder="https://script.google.com/macros/s/…/exec" value="${esc(cfg.api||'')}">
 <label class="mu">Автооновлення</label><br><select id="sev" style="margin:6px 0 12px">${[[0,'Вимкнено'],[30,'30 с'],[60,'1 хв'],[300,'5 хв']].map(([v,t])=>`<option value="${v}" ${cfg.every==v?'selected':''}>${t}</option>`).join('')}</select><br>
-<label class="mu" style="display:flex;gap:8px;align-items:center;margin-bottom:12px"><input type="checkbox" id="sin" ${cfg.intro!==false?'checked':''}> Вступна анімація «рій курсорів»</label><button class="btn pr" onclick="saveSrc()">Зберегти й оновити</button>
+<div class="intro-set"><label class="ck"><input type="checkbox" id="sin" ${cfg.intro!==false?'checked':''}> Вступна анімація «рій стрілок»</label>
+<div class="fm"><label>Швидкість: <b id="vsp">${cfg.introSpeed||2}×</b><input type="range" min="0.5" max="4" step="0.1" value="${cfg.introSpeed||2}" oninput="introSet('introSpeed',+this.value)"></label>
+<label>Кількість стрілок: <b id="vct">${cfg.introCount||6}</b><input type="range" min="1" max="12" step="1" value="${cfg.introCount||6}" oninput="introSet('introCount',+this.value)"></label>
+<label>Колір стрілок<input type="color" value="${cfg.introColor||'#34f5b0'}" oninput="introSet('introColor',this.value)"></label>
+<div style="align-self:end"><button type="button" class="btn" onclick="swarm()">▶ Показати</button></div></div></div><button class="btn pr" onclick="saveSrc()">Зберегти й оновити</button>
 <p class="mu">Таблиця має бути відкрита «усім, хто має посилання → Читач». Дані читаються наживо, а ваші правки/додавання/видалення тут зберігаються в браузері поверх таблиці.</p>
 ${s.length?`<div class="warn">Не вдалося прочитати ${s.length} аркуш(ів): ${s.map(x=>esc(x[0])).join('; ')}</div>`:''}</div>
 <div class="card"><h2>Резерв і імпорт</h2><p class="mu">Імпорт .xlsx (завантажений із Google Sheets: Файл → Завантажити) — запасний варіант без онлайн-доступу.</p><input type="file" accept=".xlsx,.xls" onchange="importFile(this.files[0])"><br><br>
@@ -183,6 +187,7 @@ ${s.length?`<div class="warn">Не вдалося прочитати ${s.length}
 <div class="card" style="grid-column:1/-1"><h2>Підрозділи (аркуші)</h2><div class="tw"><table><tr><th>Назва аркуша</th><th>Загін</th><th></th></tr>${cfg.units.map((u,i)=>`<tr><td>${esc(col(u.name))}</td><td><input value="${esc(u.group)}" onchange="cfg.units[${i}].group=this.value;sv('cfg',cfg)"></td><td><button class="btn dg" onclick="cfg.units.splice(${i},1);sv('cfg',cfg);refresh()">✕</button></td></tr>`).join('')}</table></div>
 <div class="tools" style="margin-top:10px"><input id="nun" placeholder="Точна назва нового аркуша"><input id="ngr" placeholder="Загін"><button class="btn pr" onclick="addUnit()">＋ Додати підрозділ</button></div></div></div>`}
 /* ---------- actions ---------- */
+function introSet(k,v){cfg[k]=v;sv('cfg',cfg);if(k=='introSpeed')$('#vsp').textContent=v+'×';if(k=='introCount')$('#vct').textContent=v}
 function saveSrc(){const v=$('#sid').value,m=v.match(/\/d\/([\w-]+)/);cfg.id=m?m[1]:v.trim();cfg.every=+$('#sev').value;cfg.api=$('#sapi').value.trim();cfg.cid=$('#scid').value.trim();cfg.intro=$('#sin').checked;sv('cfg',cfg);auto();refresh()}
 function addUnit(){const n=$('#nun').value.trim();if(!n)return;cfg.units.push({name:n,group:$('#ngr').value.trim()||'Інше'});sv('cfg',cfg);refresh()}
 function edit(id){if(!canEdit())return;const r=id?data().find(x=>x.id==id):{unit:F.u};const d=$('#dlg');
@@ -199,29 +204,28 @@ const a=document.createElement('a');a.href=URL.createObjectURL(new Blob([t],{typ
 /* ---- Swarm intro: рій курсорів «збирає» дашборд ---- */
 async function swarm(){
 if(window._sw||!document.body.animate)return document.body.classList.remove('sw-pre');
-window._sw=1;let ab=false;const B=document.body,T=(x,y)=>`translate(${x}px,${y}px)`,E='cubic-bezier(.5,0,.2,1)',fin=a=>a.finished.catch(()=>{}),wait=ms=>new Promise(r=>setTimeout(r,ms));
-const els=[...document.querySelectorAll('header h1,header nav,header .st,header .btn,.lt,.mod')];
+window._sw=1;let ab=false;const sp=Math.max(.3,+cfg.introSpeed||2),col=cfg.introColor||'#34f5b0',D=ms=>Math.max(90,ms/sp),B=document.body,T=(x,y)=>`translate(${x}px,${y}px)`,E='cubic-bezier(.5,0,.2,1)',fin=a=>a.finished.catch(()=>{}),wait=ms=>new Promise(r=>setTimeout(r,ms));
+const els=[...document.querySelectorAll('header h1,header nav,header .st,header .btn,.lt,.mod,#app>.grid>.card')];
 els.forEach(e=>e.style.opacity=0);B.classList.remove('sw-pre');
-const ov=document.createElement('div');ov.id='sw';ov.innerHTML='<div class="swh">Клік або Esc — пропустити</div>';B.appendChild(ov);
-const COL=['#34f5b0','#5ab0ff','#ffb454','#ff6b81','#a78bfa','#f472b6','#facc15'],NM=['Олексій','Марта','Богдан','Софія','Тарас','Іра','Назар'];
-const n=Math.min(6,Math.max(2,els.length)),cs=[...Array(n)].map((_,i)=>{const el=document.createElement('div');el.className='swc';
-el.innerHTML=`<svg width="22" height="22" viewBox="0 0 24 24"><path d="M3 2l7 19 3-8 8-3z" fill="${COL[i]}" stroke="#fff" stroke-width="1.4" stroke-linejoin="round"/></svg><b style="background:${COL[i]}">${NM[i]}</b>`;
+const ov=document.createElement('div');ov.id='sw';ov.style.setProperty('--sc',col);B.appendChild(ov);
+const n=Math.max(1,Math.min(+cfg.introCount||6,12,els.length)),cs=[...Array(n)].map((_,i)=>{const el=document.createElement('div');el.className='swc';
+el.innerHTML=`<svg width="24" height="24" viewBox="0 0 24 24"><path d="M3 2l7 19 3-8 8-3z" fill="${col}" stroke="#fff" stroke-width="1.4" stroke-linejoin="round"/></svg>`;
 const side=Math.random()<.5,x=side?-60:innerWidth+40,y=Math.random()*innerHeight;el.style.transform=T(x,y);ov.appendChild(el);return{el,x,y}});
 const mv=(c,x,y,d)=>{const mx=(c.x+x)/2+(Math.random()-.5)*160,my=(c.y+y)/2+(Math.random()-.5)*160;const a=c.el.animate([{transform:T(c.x,c.y)},{transform:T(mx,my),offset:.55},{transform:T(x,y)}],{duration:d,easing:'cubic-bezier(.45,.05,.2,1)',fill:'forwards'});c.x=x;c.y=y;return fin(a)};
 const done=()=>{ab=true;els.forEach(e=>{e.style.opacity='';e.getAnimations?.().forEach(a=>a.cancel())});ov.remove();removeEventListener('keydown',kd);removeEventListener('pointerdown',ab2,true);B.classList.remove('sw-pre');window._sw=0};
 const kd=e=>{if(e.key=='Escape')done()},ab2=()=>done();addEventListener('keydown',kd);setTimeout(()=>addEventListener('pointerdown',ab2,true),400);
 const q=els.slice();
 const build=async(c,el)=>{const r=el.getBoundingClientRect();
-if(r.top>innerHeight-20||!r.width){el.style.opacity=1;el.animate([{opacity:0},{opacity:1}],{duration:450});return}
-await mv(c,r.left+4,r.top+4,420+Math.random()*420);if(ab)return;
-const d=Math.min(1000,320+(r.width+r.height)*.55);el.style.opacity=1;
+if(r.top>innerHeight-20||!r.width){el.style.opacity=1;el.animate([{opacity:0},{opacity:1}],{duration:D(450)});return}
+await mv(c,r.left+4,r.top+4,D(420+Math.random()*420));if(ab)return;
+const d=D(Math.min(1000,320+(r.width+r.height)*.55));el.style.opacity=1;
 const a=el.animate([{clipPath:'inset(0 100% 100% 0)'},{clipPath:'inset(0 0% 0% 0)'}],{duration:d,easing:E});
 const ca=c.el.animate([{transform:T(r.left+4,r.top+4)},{transform:T(r.right-8,r.bottom-8)}],{duration:d,easing:E,fill:'forwards'});c.x=r.right-8;c.y=r.bottom-8;
-el.querySelectorAll('.kpi .v[data-v]').forEach(v=>{const to=+v.dataset.v;if(isNaN(to))return;const t0=performance.now();(function s(t){const p=Math.min(1,(t-t0)/(d+300)),k=1-Math.pow(1-p,3);v.textContent=Math.round(to*k);if(p<1&&!ab)requestAnimationFrame(s);else v.textContent=to})(t0)});
+el.querySelectorAll('.kpi .v[data-v]').forEach(v=>{const to=+v.dataset.v;if(isNaN(to))return;const t0=performance.now();(function s(t){const p=Math.min(1,(t-t0)/(d+D(300))),k=1-Math.pow(1-p,3);v.textContent=Math.round(to*k);if(p<1&&!ab)requestAnimationFrame(s);else v.textContent=to})(t0)});
 await Promise.all([fin(a),fin(ca)]);if(ab)return;
-el.animate([{boxShadow:'0 0 0 2px #34f5b0aa, 0 0 28px #34f5b055'},{boxShadow:'0 0 0 0 #34f5b000'}],{duration:500})};
-const worker=async(c,i)=>{await wait(i*130);while(q.length&&!ab)await build(c,q.shift())};
-try{await Promise.all(cs.map(worker));if(!ab){await Promise.all(cs.map(c=>{const x=Math.random()<.5?-80:innerWidth+60;return mv(c,x,Math.random()*innerHeight,800)}));await wait(100)}}finally{done()}}
+el.animate([{boxShadow:`0 0 0 2px ${col}aa, 0 0 28px ${col}55`},{boxShadow:`0 0 0 0 ${col}00`}],{duration:D(500)})};
+const worker=async(c,i)=>{await wait(Math.round(i*130/sp));while(q.length&&!ab)await build(c,q.shift())};
+try{await Promise.all(cs.map(worker));if(!ab){await Promise.all(cs.map(c=>{const x=Math.random()<.5?-80:innerWidth+60;return mv(c,x,Math.random()*innerHeight,D(800))}));await wait(D(100))}}finally{done()}}
 
 /* ---- вхід, користувачі, доступ ---- */
 const AUTH=CFG0.adminHash||'';
